@@ -1,25 +1,6 @@
 <html>
 <head>
 <title>DualSense Explorer</title>
-<style>
-  .dse {
-    padding-top: 5px;
-    padding-bottom: 5px;
-    display: block;
-    background-color: aquamarine;
-    width: 250px;
-  }
-
-  label {
-    font-size: 0.7em;
-    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-
-  body {
-    font-size: 0.9em;
-    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-</style>
 </head>
 <body>
 <h1>DualSense Explorer</h1>
@@ -65,18 +46,14 @@ Connection type: <input type="text" id="connectiontype" style="width:100;" disab
 <input type="checkbox" id="dpadleft" disabled>Dpad left</input><br />
 <input type="checkbox" id="dpadright" disabled>Dpad right</input><br />
 
+<input type="checkbox" id="r5" disabled>R5</input><br />
+<input type="checkbox" id="r4" disabled>R4</input><br />
+<input type="checkbox" id="l5" disabled>L5</input><br />
+<input type="checkbox" id="l4" disabled>L4</input><br />
+
 <input type="checkbox" id="buttonps" disabled>PS button</input><br />
 <input type="checkbox" id="buttontouchpad" disabled>Touchpad button</input><br />
 <input type="checkbox" id="buttonmute" disabled>Mute button</input><br />
-
-<div id="DSEOnly" class="dse">
-  <label>DualSense Edge Only</label>
-  <br />
-  <input type="checkbox" id="leftFunction" disabled>Left Function<br />
-  <input type="checkbox" id="rightFunction" disabled>Right Function<br />
-  <input type="checkbox" id="leftPaddle" disabled>Left Paddle (If not remapped)<br />
-  <input type="checkbox" id="rightPaddle" disabled>Right Paddle (If not remapped)<br />
-</div>
 
 <input type="text" id="leftstickx" style="text-align:right; width:50;" disabled />Left thumbstick X<br />
 <input type="text" id="leftsticky" style="text-align:right; width:50;" disabled />Left thumbstick Y<br />
@@ -111,7 +88,6 @@ Connection type: <input type="text" id="connectiontype" style="width:100;" disab
 <h3>Output report</h3>
 <textarea id="outputreport" cols="48" rows="6" disabled></textarea><br />
 
-<input type="range" id="lightbarBright" min="0" max="255" value="255">Lightbar Brightness<br />
 <input type="range" id="lightbarr" min="0" max="255" value="255">Lightbar Red<br />
 <input type="range" id="lightbarg" min="0" max="255" value="255">Lightbar Green<br />
 <input type="range" id="lightbarb" min="0" max="255" value="255">Lightbar Blue<br />
@@ -140,8 +116,9 @@ Connection type: <input type="text" id="connectiontype" style="width:100;" disab
 <input type="text" id="r2effectparam7" style="text-align:right; width:50;" />R2 trigger effect parameter 7<br />
 <script>
 const VENDOR_ID_SONY = 0x054c;
-const PRODUCT_ID_DUAL_SENSE = 0x0ce6;
-const PRODUCT_ID_DUAL_SENSE_EDGE = 0x0df2;
+// const PRODUCT_ID_DUAL_SENSE = 0x0ce6;
+const PRODUCT_ID_DUAL_SENSE = 0x0df2;
+
 
 const USAGE_PAGE_GENERIC_DESKTOP = 0x0001;
 const USAGE_ID_GD_GAME_PAD = 0x0005;
@@ -179,17 +156,14 @@ const dpadDownCheckbox = document.getElementById('dpaddown');
 const dpadLeftCheckbox = document.getElementById('dpadleft');
 const dpadRightCheckbox = document.getElementById('dpadright');
 
+const l4Checkbox = document.getElementById('l4');
+const l5Checkbox = document.getElementById('l5');
+const r4Checkbox = document.getElementById('r4');
+const r5Checkbox = document.getElementById('r5');
+
 const buttonPSCheckbox = document.getElementById('buttonps');
 const buttonTouchpadCheckbox = document.getElementById('buttontouchpad');
 const buttonMuteCheckbox = document.getElementById('buttonmute');
-
-const DualSenseEdgeOnly = document.getElementById('DSEOnly');
-
-const leftFunctionCheckbox = document.getElementById('leftFunction');
-const rightFunctionCheckbox = document.getElementById('rightFunction');
-
-const leftPaddleCheckbox = document.getElementById('leftPaddle');
-const rightPaddleCheckbox = document.getElementById('rightPaddle');
 
 const leftStickXText = document.getElementById('leftstickx');
 const leftStickYText = document.getElementById('leftsticky');
@@ -223,7 +197,6 @@ const batteryLevelText = document.getElementById('batterylevel');
 
 const outputReportTextArea = document.getElementById('outputreport');
 
-const lightbarBrightSlider = document.getElementById('lightbarBright');
 const lightbarRedSlider = document.getElementById('lightbarr');
 const lightbarGreenSlider = document.getElementById('lightbarg');
 const lightbarBlueSlider = document.getElementById('lightbarb');
@@ -313,8 +286,6 @@ const normalizeButton = value => {
   return value ? 1.0 : 0.0;
 };
 
-var IS_DUALSENSE_EDGE = false;
-
 class DualSenseHid {
   constructor(hidDevice) {
     this.device_ = hidDevice;
@@ -322,7 +293,6 @@ class DualSenseHid {
 
     // UI controls that affect the output report.
     this.checkboxPlayerLeds_ = 0x00;
-    this.sliderLightbarBright_ = 0xFF;
     this.sliderLightbarRed_ = 0xFF;
     this.sliderLightbarGreen_ = 0xFF;
     this.sliderLightbarBlue_ = 0xFF;
@@ -349,7 +319,6 @@ class DualSenseHid {
     this.r2EffectParam5_ = 0x00;
     this.r2EffectParam6_ = 0x00;
     this.r2EffectParam7_ = 0x00;
-    this.lightbarBright_ = 0xFF;
     this.lightbarRed_ = 0xFF;
     this.lightbarGreen_ = 0xFF;
     this.lightbarBlue_ = 0xFF;
@@ -406,11 +375,6 @@ class DualSenseHid {
       this.muteLed_ = muteLedCheckbox.checked ? 0x01 : 0x00;
     };
     muteLedCheckbox.onchange = onMuteLedChanged;
-
-    const onLightbarBrightnessChanged = e => {
-      this.sliderLightbarBright_ = lightbarBrightSlider.value;
-    }
-    lightbarBrightSlider.oninput = onLightbarBrightnessChanged;
 
     const onLightbarColorChanged = e => {
       this.sliderLightbarRed_ = lightbarRedSlider.value;
@@ -531,6 +495,10 @@ class DualSenseHid {
 		let down = normalizeButton(dpad == 3 || dpad == 4 || dpad == 5);
 		let left = normalizeButton(dpad == 5 || dpad == 6 || dpad == 7);
 		let right = normalizeButton(dpad == 1 || dpad == 2 || dpad == 3);
+    let r5 = normalizeButton(buttons2 & 0x80);
+    let r4 = normalizeButton(buttons2 & 0x20);
+    let l5 = normalizeButton(buttons2 & 0x40);
+    let l4= normalizeButton(buttons2 & 0x10);
     let square = normalizeButton(buttons0 & 0x10);
     let cross = normalizeButton(buttons0 & 0x20);
     let circle = normalizeButton(buttons0 & 0x40);
@@ -546,11 +514,6 @@ class DualSenseHid {
     let ps = normalizeButton(buttons2 & 0x01);
     let touchpad = normalizeButton(buttons2 & 0x02);
     let mute = normalizeButton(buttons2 & 0x04);
-
-    let lfnc = normalizeButton(buttons2 & 0x10);
-    let rfnc = normalizeButton(buttons2 & 0x20);
-    let lpaddle = normalizeButton(buttons2 & 0x40); // Unless assigned via PS5
-    let rpaddle = normalizeButton(buttons2 & 0x80); // Unless assigned via PS5
     
     let touch0active = !(touch00 & 0x80);
     let touch0id = (touch00 & 0x7F);
@@ -574,16 +537,14 @@ class DualSenseHid {
     let accelz = (accelZ1 << 8) | accelZ0;
     if (accelz > 0x7FFF) accelz -= 0x10000;
 
-    let showDSEOnly = IS_DUALSENSE_EDGE ? 'block' : 'none';
-
     let batteryLevelPercent = (battery0 & 0x0f) * 100 / 8;
     let batteryFull = !!(battery0 & 0x20);
 		let batteryCharging = !!(battery1 & 0x08);
 
     buttonCrossCheckbox.checked = cross;
-	 buttonCircleCheckbox.checked = circle;
-	 buttonSquareCheckbox.checked = square;
-	 buttonTriangleCheckbox.checked = triangle;
+		buttonCircleCheckbox.checked = circle;
+		buttonSquareCheckbox.checked = square;
+		buttonTriangleCheckbox.checked = triangle;
     buttonL1Checkbox.checked = l1;
     buttonR1Checkbox.checked = r1;
     buttonL2Checkbox.checked = l2;
@@ -599,19 +560,14 @@ class DualSenseHid {
     dpadDownCheckbox.checked = down;
     dpadLeftCheckbox.checked = left;
     dpadRightCheckbox.checked = right;
+    r5Checkbox.checked = r5;
+    r4Checkbox.checked = r4;
+    l5Checkbox.checked = l5;
+    l4Checkbox.checked = l4;
     
     buttonPSCheckbox.checked = ps;
     buttonTouchpadCheckbox.checked = touchpad;
     buttonMuteCheckbox.checked = mute;
-
-    DualSenseEdgeOnly.style.display = showDSEOnly;
-
-    leftFunctionCheckbox.checked = lfnc;
-    rightFunctionCheckbox.checked = rfnc;
-
-    leftPaddleCheckbox.checked = lpaddle;
-    rightPaddleCheckbox.checked = rpaddle;
-
 
     leftStickXText.value = Number(lsx).toFixed(2);
     leftStickYText.value = Number(lsy).toFixed(2);
@@ -685,13 +641,6 @@ class DualSenseHid {
     let ps = normalizeButton(buttons2 & 0x01);
     let touchpad = normalizeButton(buttons2 & 0x02);
 
-    let showDSEOnly = IS_DUALSENSE_EDGE ? 'block' : 'none';
-
-    let lfnc = normalizeButton(buttons2 & 0x10);
-    let rfnc = normalizeButton(buttons2 & 0x20);
-    let lpaddle = normalizeButton(buttons2 & 0x40); // Unless assigned via PS5
-    let rpaddle = normalizeButton(buttons2 & 0x80); // Unless assigned via PS5
-
     buttonCrossCheckbox.checked = cross;
 		buttonCircleCheckbox.checked = circle;
 		buttonSquareCheckbox.checked = square;
@@ -715,14 +664,6 @@ class DualSenseHid {
     buttonPSCheckbox.checked = ps;
     buttonTouchpadCheckbox.checked = touchpad;
     buttonMuteCheckbox.checked = false;
-
-    DualSenseEdgeOnly.style.display = showDSEOnly;
-
-    leftFunctionCheckbox.checked = lfnc;
-    rightFunctionCheckbox.checked = rfnc;
-
-    leftPaddleCheckbox.checked = lpaddle;
-    rightPaddleCheckbox.checked = rpaddle;
 
     leftStickXText.value = Number(lsx).toFixed(2);
     leftStickYText.value = Number(lsy).toFixed(2);
@@ -819,11 +760,6 @@ class DualSenseHid {
     let ps = normalizeButton(buttons2 & 0x01);
     let touchpad = normalizeButton(buttons2 & 0x02);
     let mute = normalizeButton(buttons2 & 0x04);
-
-    let lfnc = normalizeButton(buttons2 & 0x10);
-    let rfnc = normalizeButton(buttons2 & 0x20);
-    let lpaddle = normalizeButton(buttons2 & 0x40); // Unless assigned via PS5
-    let rpaddle = normalizeButton(buttons2 & 0x80); // Unless assigned via PS5
     
     let touch0active = !(touch00 & 0x80);
     let touch0id = (touch00 & 0x7F);
@@ -847,9 +783,7 @@ class DualSenseHid {
     let accelz = (accelZ1 << 8) | accelZ0;
     if (accelz > 0x7FFF) accelz -= 0x10000;
 
-    let showDSEOnly = IS_DUALSENSE_EDGE ? 'block' : 'none';
-
-    let batteryLevelPercent = IS_DUALSENSE_EDGE ? (battery0 & 0x0f) * 100 / 9 : (battery0 & 0x0f) * 100 / 8;
+    let batteryLevelPercent = (battery0 & 0x0f) * 100 / 8;
     let batteryFull = !!(battery0 & 0x20);
 		let batteryCharging = !!(battery1 & 0x08);
 
@@ -876,14 +810,6 @@ class DualSenseHid {
     buttonPSCheckbox.checked = ps;
     buttonTouchpadCheckbox.checked = touchpad;
     buttonMuteCheckbox.checked = mute;
-    
-    DualSenseEdgeOnly.style.display = showDSEOnly;
-
-    leftFunctionCheckbox.checked = lfnc;
-    rightFunctionCheckbox.checked = rfnc;
-
-    leftPaddleCheckbox.checked = lpaddle;
-    rightPaddleCheckbox.checked = rpaddle;
 
     leftStickXText.value = Number(lsx).toFixed(2);
     leftStickYText.value = Number(lsy).toFixed(2);
@@ -948,7 +874,6 @@ class DualSenseHid {
 
   async sendOutputReport() {
     const pads = navigator.getGamepads();
-    this.lightbarBright_ = this.sliderLightbarBright_;
     this.lightbarRed_ = this.sliderLightbarRed_;
     this.lightbarGreen_ = this.sliderLightbarGreen_;
     this.lightbarBlue_ = this.sliderLightbarBlue_;
@@ -1132,9 +1057,6 @@ class DualSenseHid {
     // 2: Enable LEDs
     common.setUint8(41, 0x02);
 
-    // led brightness
-    common.setUint8(42, this.lightbarBright_);
-
     // player_leds
     common.setUint8(43, this.playerLeds_);
 
@@ -1169,7 +1091,7 @@ class DualSenseHid {
 const requestDevice = async () => {
   let requestOptions = {
     filters: [
-      { vendorId: VENDOR_ID_SONY,
+      { vendorId: VENDOR_ID_SONY, productId: PRODUCT_ID_DUAL_SENSE,
         usagePage: USAGE_PAGE_GENERIC_DESKTOP, usage: USAGE_ID_GD_GAME_PAD },
     ]
   };
@@ -1218,8 +1140,7 @@ const checkForGrantedDevices = async () => {
   // Check if we already have permissions for a DualSense device.
   const devices = await navigator.hid.getDevices();
   for (const device of devices) {
-    if (device.vendorId == VENDOR_ID_SONY && (device.productId == PRODUCT_ID_DUAL_SENSE || device.productId == PRODUCT_ID_DUAL_SENSE_EDGE)) {
-      IS_DUALSENSE_EDGE = device.productId == PRODUCT_ID_DUAL_SENSE_EDGE;
+    if (device.vendorId == VENDOR_ID_SONY && device.productId == PRODUCT_ID_DUAL_SENSE) {
       if (!device.opened) {
         await device.open();
         if (!device.opened)
